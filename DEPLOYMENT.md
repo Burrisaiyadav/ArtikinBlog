@@ -2,18 +2,14 @@
 
 This guide explains how to deploy your frontend to **Netlify** and your backend to **Render.com**.
 
-## Part 1: Backend Deployment (Render.com)
+## Part 1: Backend Deployment (Render.com) - The Quick Way
 
-1.  Create an account on [Render.com](https://render.com).
-2.  Click **New +** and select **Web Service**.
-3.  Connect your GitHub repository: `Burrisaiyadav/ArtikinBlog`.
-4.  Use these settings:
-    *   **Name**: `artikin-api`
-    *   **Environment**: `Node`
-    *   **Build Command**: `npm install`
-    *   **Start Command**: `npm run server`
-5.  Click **Deploy**.
-6.  **Important**: Once deployed, copy your service URL (e.g., `https://artikin-api.onrender.com`).
+1. Log in to [Render.com](https://render.com).
+2. Click **New +** and select **Blueprint**.
+3. Connect your GitHub repository: `Burrisaiyadav/ArtikinBlog`.
+4. Render will automatically see the `render.yaml` file. Click **Apply**.
+5. **Wait** for the deployment to finish.
+6. Once done, copy your service URL (e.g., `https://artikin-api.onrender.com`).
 
 ---
 
