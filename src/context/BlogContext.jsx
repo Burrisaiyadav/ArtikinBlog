@@ -4,10 +4,9 @@ const BlogContext = createContext();
 
 export const useBlogs = () => useContext(BlogContext);
 
-// Base URL for the backend API. For production (e.g. Vercel) you can
-// override this with VITE_API_BASE_URL, for example:
-//   https://your-backend-domain.com/api
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://artikinblog.onrender.com/api';
+export const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:5000/api'
+  : (import.meta.env.VITE_API_BASE_URL || 'https://artikinblog.onrender.com/api');
 
 // Strip trailing /api to get the root used for serving images
 const API_ROOT = API_BASE.replace(/\/api\/?$/, '');

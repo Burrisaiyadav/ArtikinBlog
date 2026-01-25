@@ -43,32 +43,7 @@ const createTables = () => {
     });
 
 
-    // Seed with one welcome blog if empty
-    db.get('SELECT COUNT(*) as count FROM blogs', (err, row) => {
-      if (err) return;
-      if (row && row.count === 0) {
-        const nowIso = new Date().toISOString();
-        const dateStr = formatDate();
-        const sql = `
-          INSERT INTO blogs (title, excerpt, content, author, authorRole, imagePath, date, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        db.run(
-          sql,
-          [
-            'Welcome to Artikin Blog',
-            'This is your first Artikin blog post. Use the Create button to add more.',
-            '<p>This is your first Artikin blog post. Use the Create button to add more posts for your community.</p>',
-            'Artikin Team',
-            'Editors',
-            null,
-            dateStr,
-            nowIso,
-            nowIso,
-          ],
-        );
-      }
-    });
+
   });
 };
 
