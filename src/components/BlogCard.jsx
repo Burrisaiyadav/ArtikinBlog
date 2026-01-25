@@ -33,10 +33,12 @@ const BlogCard = ({
 
   return (
     <div className="blog-card-wrap">
-        <Link to={`/post/${id}`} className="blog-card">
-        <div className="blog-card-image-wrap">
-            <img src={image} alt={title} className="blog-card-image" />
-        </div>
+        <Link to={`/post/${id}`} className={`blog-card ${!image ? 'no-image' : ''}`}>
+        {image && (
+          <div className="blog-card-image-wrap">
+              <img src={image} alt={title} className="blog-card-image" />
+          </div>
+        )}
         <div className="blog-card-content">
             <div className="blog-card-meta">
                 <span className="blog-card-date">{date}</span>

@@ -146,6 +146,24 @@
     color: #e53e3e;
 }
 
+/* No Image Variant */
+.blog-card.no-image {
+    min-height: 250px;
+    border-top: 4px solid var(--primary);
+}
+
+.blog-card.no-image .blog-card-title {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    font-size: 1.5rem;
+}
+
+.blog-card.no-image .blog-card-excerpt {
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    font-size: 1rem;
+}
+
 @media (max-width: 480px) {
     .blog-card-image-wrap {
         height: 180px;
