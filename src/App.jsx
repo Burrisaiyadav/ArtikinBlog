@@ -18,14 +18,7 @@ const AppLayout = () => {
   if (loading) {
     return (
       <div className="app-loading-screen">
-        <div className="app-loading-logo-wrap">
-          <div className="app-loading-logo-glow" />
-          <img src={artikinMark} alt="Artikin" className="app-loading-logo" />
-        </div>
-        <div className="app-loading-text">
-          <span className="app-loading-word">Artikin</span>
-          <span className="app-loading-subtitle">Where artists, filmmakers, and creators shape the future.</span>
-        </div>
+        <div className="app-spinner"></div>
       </div>
     );
   }
