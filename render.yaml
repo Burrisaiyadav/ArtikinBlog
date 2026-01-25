@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: artikin
+    name: artikinblog
     runtime: node
     plan: free
     buildCommand: npm install
