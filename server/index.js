@@ -164,7 +164,12 @@ app.get('/api/blogs/:id', (req, res) => {
 app.post('/api/blogs', upload.single('image'), (req, res) => {
   const { title, excerpt, content, author, authorRole, ownerId } = req.body;
 
+  console.log('--- New Blog Create Request ---');
+  console.log('Body:', { title, excerpt, author, authorRole, ownerId });
+  console.log('File:', req.file ? req.file.filename : 'No image');
+
   if (!title || !content) {
+    console.error('Validation Error: Title or content missing');
     return res.status(400).json({ error: 'Title and content are required' });
   }
 
@@ -198,11 +203,14 @@ app.post('/api/blogs', upload.single('image'), (req, res) => {
       }
 
       const insertedId = this.lastID;
+      console.log('Successfully inserted blog with ID:', insertedId);
+
       db.get('SELECT * FROM blogs WHERE id = ?', [insertedId], (gErr, row) => {
         if (gErr || !row) {
-          console.error(gErr);
+          console.error('Failed to read back created blog:', gErr);
           return res.status(500).json({ error: 'Failed to read created blog' });
         }
+        console.log('Sending back created blog JSON');
         res.status(201).json(blogRowToJson(row));
       });
     },

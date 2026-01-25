@@ -58,14 +58,24 @@ export const BlogProvider = ({ children }) => {
 
   const addBlog = async (formData) => {
     formData.append('ownerId', ownerId);
+    console.log('Sending addBlog request to:', `${API_BASE}/blogs`);
+    
     const res = await fetch(`${API_BASE}/blogs`, {
       method: 'POST',
       body: formData,
     });
+    
+    console.log('addBlog response status:', res.status);
+    
     if (!res.ok) {
-      throw new Error('Failed to create blog');
+      const errorText = await res.text();
+      console.error('Failed to create blog:', errorText);
+      throw new Error('Failed to create blog: ' + errorText);
     }
+    
     const created = await res.json();
+    console.log('Successfully created blog:', created);
+    
     const withImage = { ...created, image: resolveImageUrl(created.image) };
     setBlogs((prevBlogs) => [withImage, ...prevBlogs]);
   };
