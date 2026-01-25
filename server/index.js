@@ -3,49 +3,25 @@ import cors from 'cors';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import sqlite3 from 'sqlite3';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
+
+dotenv.config();
 
 // ESM __dirname replacement
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Set up SQLite database
-sqlite3.verbose();
-const dbPath = path.join(__dirname, 'artikin.db');
-const db = new sqlite3.Database(dbPath);
+// Supabase setup
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-const createTables = () => {
-  db.serialize(() => {
-    db.run(`
-      CREATE TABLE IF NOT EXISTS blogs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        excerpt TEXT,
-        content TEXT NOT NULL,
-        author TEXT,
-        authorRole TEXT,
-        imagePath TEXT,
-        date TEXT,
-        ownerId TEXT,
-        createdAt TEXT,
-        updatedAt TEXT
-      )
-    `);
+if (!supabaseUrl || !supabaseKey) {
+  console.error("WARNING: SUPABASE_URL and SUPABASE_KEY are not set. The app will not function correctly.");
+}
 
-    // Migration: Add ownerId if it doesn't exist
-    db.all("PRAGMA table_info(blogs)", (err, columns) => {
-      if (err) return;
-      const hasOwnerId = columns.some(col => col.name === 'ownerId');
-      if (!hasOwnerId) {
-        db.run("ALTER TABLE blogs ADD COLUMN ownerId TEXT");
-      }
-    });
-
-
-
-  });
-};
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const formatDate = () =>
   new Date().toLocaleDateString('en-GB', {
@@ -62,12 +38,10 @@ const blogRowToJson = (row) => ({
   author: row.author,
   authorRole: row.authorRole,
   ownerId: row.ownerId,
-  image: row.imagePath ? `/uploads/${path.basename(row.imagePath)}` : null,
+  image: row.imagePath, // In Supabase, this will be the full URL or a path we resolve
   date: row.date,
   commentCount: row.commentCount ?? 0,
 });
-
-createTables();
 
 // Express app setup
 const app = express();
@@ -76,138 +50,138 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Serve uploaded images
-app.use('/uploads', express.static(uploadsDir));
-
-// Multer setup for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || '';
-    const base = path.basename(file.originalname, ext).replace(/\s+/g, '-');
-    const unique = Date.now();
-    cb(null, `${base}-${unique}${ext}`);
-  },
-});
-
+// Multer setup for memory storage (we will upload directly to Supabase)
+const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // ROUTES
 
-// Get all blogs (with comment count)
-app.get('/api/blogs', (req, res) => {
-  const sql = `
-    SELECT * FROM blogs
-    ORDER BY datetime(createdAt) DESC
-  `;
-  db.all(sql, [], (err, rows) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Failed to fetch blogs' });
-    }
-    const blogs = rows.map(blogRowToJson);
-    res.json(blogs);
-  });
-});
+// Get all blogs
+app.get('/api/blogs', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('blogs')
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-// Get a single blog with comments
-app.get('/api/blogs/:id', (req, res) => {
-  const { id } = req.params;
-  db.get('SELECT * FROM blogs WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Failed to fetch blog' });
-    }
-    if (!row) {
-      return res.status(404).json({ error: 'Blog not found' });
-    }
+    if (error) throw error;
 
-    const blog = blogRowToJson(row);
-    res.json(blog);
-  });
-});
-
-// Create a new blog (supports optional image upload)
-app.post('/api/blogs', upload.single('image'), (req, res) => {
-  const { title, excerpt, content, author, authorRole, ownerId } = req.body;
-
-  console.log('--- New Blog Create Request ---');
-  console.log('Body:', { title, excerpt, author, authorRole, ownerId });
-  console.log('File:', req.file ? req.file.filename : 'No image');
-
-  if (!title || !content) {
-    console.error('Validation Error: Title or content missing');
-    return res.status(400).json({ error: 'Title and content are required' });
+    res.json(data.map(blogRowToJson));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch blogs' });
   }
+});
 
-  const imagePath = req.file ? path.join('uploads', req.file.filename) : null;
-  const dateStr = formatDate();
-  const nowIso = new Date().toISOString();
+// Get a single blog
+app.get('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabase
+      .from('blogs')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  const sql = `
-    INSERT INTO blogs (title, excerpt, content, author, authorRole, imagePath, date, ownerId, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Blog not found' });
 
-  db.run(
-    sql,
-    [
-      title,
-      excerpt || '',
-      content,
-      author || 'Anonymous',
-      authorRole || '',
-      imagePath,
-      dateStr,
-      ownerId || null,
-      nowIso,
-      nowIso,
-    ],
-    function (err) {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Failed to create blog' });
+    res.json(blogRowToJson(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch blog' });
+  }
+});
+
+// Create a new blog
+app.post('/api/blogs', upload.single('image'), async (req, res) => {
+  try {
+    const { title, excerpt, content, author, authorRole, ownerId } = req.body;
+
+    console.log('--- New Blog Create Request ---');
+    console.log('Body:', { title, excerpt, author, authorRole, ownerId });
+
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
+    let imagePath = null;
+    if (req.file) {
+      const ext = path.extname(req.file.originalname) || '';
+      const base = path.basename(req.file.originalname, ext).replace(/\s+/g, '-');
+      const unique = Date.now();
+      const filename = `${base}-${unique}${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(filename, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload Error:', uploadError, 'Filename:', filename, 'MimeType:', req.file.mimetype);
+        return res.status(500).json({ error: 'Failed to upload image. Make sure blog-images bucket is public.' });
       }
 
-      const insertedId = this.lastID;
-      console.log('Successfully inserted blog with ID:', insertedId);
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('blog-images')
+        .getPublicUrl(filename);
 
-      db.get('SELECT * FROM blogs WHERE id = ?', [insertedId], (gErr, row) => {
-        if (gErr || !row) {
-          console.error('Failed to read back created blog:', gErr);
-          return res.status(500).json({ error: 'Failed to read created blog' });
-        }
-        console.log('Sending back created blog JSON');
-        res.status(201).json(blogRowToJson(row));
-      });
-    },
-  );
-});
-
-// Update an existing blog (supports optional new image upload)
-app.put('/api/blogs/:id', upload.single('image'), (req, res) => {
-  const { id } = req.params;
-  const { title, excerpt, content, author, authorRole } = req.body;
-
-  if (!title || !content) {
-    return res.status(400).json({ error: 'Title and content are required' });
-  }
-
-  db.get('SELECT * FROM blogs WHERE id = ?', [id], (err, existing) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Failed to fetch blog' });
+      imagePath = publicUrl;
     }
 
-    if (!existing) {
+    const dateStr = formatDate();
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('blogs')
+      .insert([
+        {
+          title,
+          excerpt: excerpt || '',
+          content,
+          author: author || 'Anonymous',
+          authorRole: authorRole || '',
+          imagePath,
+          date: dateStr,
+          ownerId: ownerId || null,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('Successfully inserted blog with ID:', data.id);
+    res.status(201).json(blogRowToJson(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create blog' });
+  }
+});
+
+// Update an existing blog
+app.put('/api/blogs/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, excerpt, content, author, authorRole } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: 'Title and content are required' });
+    }
+
+    // Check ownership
+    const { data: existing, error: fetchError } = await supabase
+      .from('blogs')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existing) {
       return res.status(404).json({ error: 'Blog not found' });
     }
 
@@ -218,61 +192,63 @@ app.put('/api/blogs/:id', upload.single('image'), (req, res) => {
 
     let imagePath = existing.imagePath;
     if (req.file) {
-      // Delete old image if existed
-      if (imagePath) {
-        const fullOldPath = path.join(__dirname, imagePath);
-        fs.unlink(fullOldPath, () => { });
-      }
-      imagePath = path.join('uploads', req.file.filename);
+      const ext = path.extname(req.file.originalname) || '';
+      const base = path.basename(req.file.originalname, ext).replace(/\s+/g, '-');
+      const unique = Date.now();
+      const filename = `${base}-${unique}${ext}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(filename, req.file.buffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('blog-images')
+        .getPublicUrl(filename);
+
+      imagePath = publicUrl;
     }
 
     const nowIso = new Date().toISOString();
-    const sql = `
-      UPDATE blogs
-      SET title = ?, excerpt = ?, content = ?, author = ?, authorRole = ?, imagePath = ?, updatedAt = ?
-      WHERE id = ?
-    `;
-
-    db.run(
-      sql,
-      [
+    const { data, error } = await supabase
+      .from('blogs')
+      .update({
         title,
-        excerpt || '',
+        excerpt: excerpt || '',
         content,
-        author || 'Anonymous',
-        authorRole || '',
+        author: author || 'Anonymous',
+        authorRole: authorRole || '',
         imagePath,
-        nowIso,
-        id,
-      ],
-      function (uErr) {
-        if (uErr) {
-          console.error(uErr);
-          return res.status(500).json({ error: 'Failed to update blog' });
-        }
+        updatedAt: nowIso,
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-        db.get('SELECT * FROM blogs WHERE id = ?', [id], (gErr, row) => {
-          if (gErr || !row) {
-            console.error(gErr);
-            return res.status(500).json({ error: 'Failed to read updated blog' });
-          }
-          res.json(blogRowToJson(row));
-        });
-      },
-    );
-  });
+    if (error) throw error;
+    res.json(blogRowToJson(data));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update blog' });
+  }
 });
 
-// Delete a blog (and its comments)
-app.delete('/api/blogs/:id', (req, res) => {
-  const { id } = req.params;
+// Delete a blog
+app.delete('/api/blogs/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  db.get('SELECT * FROM blogs WHERE id = ?', [id], (err, row) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: 'Failed to fetch blog' });
-    }
-    if (!row) {
+    const { data: row, error: fetchError } = await supabase
+      .from('blogs')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !row) {
       return res.status(404).json({ error: 'Blog not found' });
     }
 
@@ -281,22 +257,29 @@ app.delete('/api/blogs/:id', (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: You do not own this blog' });
     }
 
-    const imagePath = row.imagePath;
-
-    db.run('DELETE FROM blogs WHERE id = ?', [id], (dErr) => {
-      if (dErr) {
-        console.error(dErr);
-        return res.status(500).json({ error: 'Failed to delete blog' });
+    // Optional: Delete image from storage
+    if (row.imagePath) {
+      try {
+        const urlParts = row.imagePath.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        await supabase.storage.from('blog-images').remove([filename]);
+      } catch (e) {
+        console.error('Failed to delete image from storage:', e);
       }
+    }
 
-      if (imagePath) {
-        const fullPath = path.join(__dirname, imagePath);
-        fs.unlink(fullPath, () => { });
-      }
+    const { error: deleteError } = await supabase
+      .from('blogs')
+      .delete()
+      .eq('id', id);
 
-      res.json({ success: true });
-    });
-  });
+    if (deleteError) throw deleteError;
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete blog' });
+  }
 });
 
 app.listen(PORT, () => {
