@@ -17,11 +17,34 @@ const __dirname = path.dirname(__filename);
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error("WARNING: SUPABASE_URL and SUPABASE_KEY are not set. The app will not function correctly.");
-}
+let supabase;
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!supabaseUrl || !supabaseKey) {
+  console.log("------------------------------------------------------------------");
+  console.log("WARNING: SUPABASE_URL and SUPABASE_KEY are not set.");
+  console.log("The app will run but database operations will fail.");
+  console.log("Please set these in your .env file for full functionality.");
+  console.log("------------------------------------------------------------------");
+
+  // Provide a dummy client that warns on every call instead of crashing the server
+  supabase = {
+    from: () => ({
+      select: () => ({ order: () => Promise.resolve({ data: [], error: { message: 'Supabase credentials missing' } }) }),
+      insert: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }),
+      update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }) }) }) }),
+      delete: () => ({ eq: () => Promise.resolve({ error: { message: 'Supabase credentials missing' } }) }),
+      get: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }) }) }),
+    }),
+    storage: {
+      from: () => ({
+        upload: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }),
+        getPublicUrl: () => ({ data: { publicUrl: null } })
+      })
+    }
+  };
+} else {
+  supabase = createClient(supabaseUrl, supabaseKey);
+}
 
 const formatDate = () =>
   new Date().toLocaleDateString('en-GB', {

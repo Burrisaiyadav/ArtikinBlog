@@ -24,9 +24,10 @@ const Admin = () => {
     }
   };
 
-  const myBlogs = blogs.filter(blog => isOwner(blog.ownerId));
+  // Display all blogs for admins, but maintain ownership indicator if needed
+  const displayBlogs = isAdmin ? blogs : blogs.filter(blog => isOwner(blog.ownerId));
   
-  const filteredBlogs = myBlogs.filter(blog => {
+  const filteredBlogs = displayBlogs.filter(blog => {
     return blog.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
            blog.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -67,8 +68,10 @@ const Admin = () => {
         </div>
 
         <div className="section-header">
-           <h2 className="section-title">Your Content ({myBlogs.length})</h2>
-           <p className="section-subtitle">Below are the blogs you've authored. Use the actions on each card to edit or remove content.</p>
+           <h2 className="section-title">Content Management ({displayBlogs.length})</h2>
+           <p className="section-subtitle">
+             {isAdmin ? "Showing all articles. You have full administrative access to manage any post." : "Below are the blogs you've authored. Use the actions on each card to edit or remove content."}
+           </p>
         </div>
 
         {loading ? (
@@ -90,7 +93,7 @@ const Admin = () => {
             {filteredBlogs.length === 0 && (
               <div className="empty-state">
                 <h2>No blogs found</h2>
-                <p>{myBlogs.length === 0 ? "You haven't written any blogs yet." : "No results match your search."}</p>
+                <p>{displayBlogs.length === 0 ? "No blogs exist yet." : "No results match your search."}</p>
                 <Link to="/create" className="create-btn secondary">
                   Create Your First Blog
                 </Link>

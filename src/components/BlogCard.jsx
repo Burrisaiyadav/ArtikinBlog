@@ -15,8 +15,8 @@ const BlogCard = ({
   ownerId,
   showActions = false, // Default to false for audience view
 }) => {
-  const { isOwner } = useBlogs();
-
+  const { isOwner, isAdmin } = useBlogs();
+  
   const handleEditClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -29,7 +29,7 @@ const BlogCard = ({
     if (onDelete) onDelete(id);
   };
 
-  const canModify = showActions && isOwner(ownerId);
+  const canModify = showActions && (isOwner(ownerId) || isAdmin);
 
   return (
     <div className="blog-card-wrap">
