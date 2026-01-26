@@ -29,11 +29,15 @@ if (!supabaseUrl || !supabaseKey) {
   // Provide a dummy client that warns on every call instead of crashing the server
   supabase = {
     from: () => ({
-      select: () => ({ order: () => Promise.resolve({ data: [], error: { message: 'Supabase credentials missing' } }) }),
-      insert: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }),
+      select: function () { return this; },
+      order: function () { return this; },
+      eq: function () { return this; },
+      single: function () { return Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }); },
+      insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }) }) }),
       update: () => ({ eq: () => ({ select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }) }) }) }),
       delete: () => ({ eq: () => Promise.resolve({ error: { message: 'Supabase credentials missing' } }) }),
-      get: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Supabase credentials missing' } }) }) }),
+      // Helper for the get-all chain
+      then: (fn) => fn({ data: [], error: { message: 'Supabase credentials missing' } })
     }),
     storage: {
       from: () => ({
@@ -61,6 +65,7 @@ const blogRowToJson = (row) => ({
   author: row.author,
   authorRole: row.authorRole,
   ownerId: row.ownerId,
+  status: row.status || 'published',
   image: row.imagePath, // In Supabase, this will be the full URL or a path we resolve
   date: row.date,
   commentCount: row.commentCount ?? 0,
@@ -119,10 +124,10 @@ app.get('/api/blogs/:id', async (req, res) => {
 // Create a new blog
 app.post('/api/blogs', upload.single('image'), async (req, res) => {
   try {
-    const { title, excerpt, content, author, authorRole, ownerId } = req.body;
+    const { title, excerpt, content, author, authorRole, ownerId, status } = req.body;
 
     console.log('--- New Blog Create Request ---');
-    console.log('Body:', { title, excerpt, author, authorRole, ownerId });
+    console.log('Body:', { title, excerpt, author, authorRole, ownerId, status });
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -170,6 +175,7 @@ app.post('/api/blogs', upload.single('image'), async (req, res) => {
           imagePath,
           date: dateStr,
           ownerId: ownerId || null,
+          status: status || 'published',
           createdAt: nowIso,
           updatedAt: nowIso,
         },
@@ -191,7 +197,7 @@ app.post('/api/blogs', upload.single('image'), async (req, res) => {
 app.put('/api/blogs/:id', upload.single('image'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, excerpt, content, author, authorRole } = req.body;
+    const { title, excerpt, content, author, authorRole, status } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -245,6 +251,7 @@ app.put('/api/blogs/:id', upload.single('image'), async (req, res) => {
         content,
         author: author || 'Anonymous',
         authorRole: authorRole || '',
+        status: status || existing.status,
         imagePath,
         updatedAt: nowIso,
       })

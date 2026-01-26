@@ -75,7 +75,7 @@ export const BlogProvider = ({ children }) => {
     const created = await res.json();
     console.log('Successfully created blog:', created);
     
-    const withImage = { ...created, image: resolveImageUrl(created.image) };
+    const withImage = { ...created, image: resolveImageUrl(created.image), status: created.status || 'published' };
     setBlogs((prevBlogs) => [withImage, ...prevBlogs]);
   };
 
@@ -90,7 +90,7 @@ export const BlogProvider = ({ children }) => {
       throw new Error(errData.error || 'Failed to update blog');
     }
     const updated = await res.json();
-    const withImage = { ...updated, image: resolveImageUrl(updated.image) };
+    const withImage = { ...updated, image: resolveImageUrl(updated.image), status: updated.status || 'published' };
     setBlogs((prevBlogs) =>
       prevBlogs.map((blog) => (blog.id === withImage.id ? withImage : blog))
     );

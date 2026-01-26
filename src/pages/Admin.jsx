@@ -82,13 +82,29 @@ const Admin = () => {
         ) : (
           <div className="blogs-grid">
             {filteredBlogs.map((blog) => (
-              <BlogCard
-                key={blog.id}
-                {...blog}
-                showActions={true} // Explicitly show actions in admin console
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              <div key={blog.id} className="admin-blog-card-wrap" style={{ position: 'relative' }}>
+                {blog.status === 'draft' && (
+                  <span className="draft-badge" style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: '#fef3c7',
+                    color: '#92400e',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    zIndex: '2',
+                    border: '1px solid #fcd34d'
+                  }}>DRAFT</span>
+                )}
+                <BlogCard
+                  {...blog}
+                  showActions={true}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </div>
             ))}
             {filteredBlogs.length === 0 && (
               <div className="empty-state">

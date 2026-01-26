@@ -9,6 +9,7 @@ CREATE TABLE blogs (
   imagePath TEXT,
   date TEXT,
   ownerId TEXT,
+  status TEXT DEFAULT 'published', -- 'published' or 'draft'
   createdAt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updatedAt TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

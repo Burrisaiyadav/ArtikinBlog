@@ -68,15 +68,19 @@ const EditBlog = () => {
     setImageFile(file || null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, status) => {
+    if (e) e.preventDefault();
     if (!formData.title || !formData.content) return;
+
+    // Use specific status if provided, otherwise preserve original (unless publishing)
+    const newStatus = status || blog.status || 'published';
 
     const formDataToSend = new FormData();
     formDataToSend.append('title', formData.title);
     formDataToSend.append('author', formData.author);
     formDataToSend.append('authorRole', formData.authorRole);
     formDataToSend.append('excerpt', formData.excerpt);
+    formDataToSend.append('status', newStatus);
     formDataToSend.append(
       'content',
       formData.content
@@ -92,7 +96,7 @@ const EditBlog = () => {
     }
 
     await updateBlog(blog.id, formDataToSend);
-    navigate('/');
+    navigate(newStatus === 'published' ? '/' : '/admin');
   };
 
   return (
@@ -203,8 +207,8 @@ const EditBlog = () => {
           </div>
 
           <div className="editor-actions">
-              <button type="button" className="secondary-btn" onClick={() => navigate(-1)}>Discard Changes</button>
-              <button type="submit" className="submit-btn highlight">Save Changes</button>
+              <button type="button" className="secondary-btn" onClick={(e) => handleSubmit(e, 'draft')}>Save as Draft</button>
+              <button type="submit" className="submit-btn highlight" onClick={(e) => handleSubmit(e, 'published')}>Publish</button>
           </div>
         </form>
       </div>

@@ -25,8 +25,8 @@ const CreateBlog = () => {
     setImageFile(file || null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e, status = 'published') => {
+    if (e) e.preventDefault();
     if (!formData.title || !formData.content) return;
 
     const formDataToSend = new FormData();
@@ -34,6 +34,7 @@ const CreateBlog = () => {
     formDataToSend.append('author', formData.author);
     formDataToSend.append('authorRole', formData.authorRole);
     formDataToSend.append('excerpt', formData.excerpt);
+    formDataToSend.append('status', status);
     formDataToSend.append(
       'content',
       formData.content
@@ -49,7 +50,7 @@ const CreateBlog = () => {
     }
 
     await addBlog(formDataToSend);
-    navigate('/');
+    navigate(status === 'published' ? '/' : '/admin');
   };
 
   return (
@@ -160,7 +161,7 @@ const CreateBlog = () => {
           </div>
 
           <div className="editor-actions">
-              <button type="button" className="secondary-btn" onClick={() => navigate(-1)}>Save as Draft</button>
+              <button type="button" className="secondary-btn" onClick={(e) => handleSubmit(e, 'draft')}>Save as Draft</button>
               <button type="submit" className="submit-btn highlight">Publish Blog</button>
           </div>
         </form>

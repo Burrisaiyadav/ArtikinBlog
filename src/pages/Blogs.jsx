@@ -11,6 +11,9 @@ const Blogs = () => {
   const navigate = useNavigate();
 
   const filteredBlogs = blogs.filter(blog => {
+    // Only show published blogs in public view
+    if (blog.status && blog.status !== 'published') return false;
+
     return blog.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
            blog.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
   });
