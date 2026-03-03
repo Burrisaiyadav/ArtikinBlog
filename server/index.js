@@ -60,6 +60,22 @@ if (!isUsingSupabase) {
         createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
         updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
       )`);
+
+      // Migration: Ensure newer columns exist for older databases
+      const migrations = [
+        'ALTER TABLE blogs ADD COLUMN ownerId TEXT',
+        'ALTER TABLE blogs ADD COLUMN status TEXT DEFAULT "published"',
+        'ALTER TABLE blogs ADD COLUMN createdAt TEXT DEFAULT CURRENT_TIMESTAMP',
+        'ALTER TABLE blogs ADD COLUMN updatedAt TEXT DEFAULT CURRENT_TIMESTAMP'
+      ];
+
+      migrations.forEach(sql => {
+        db.run(sql, (err) => {
+          if (err && !err.message.includes('duplicate column name')) {
+            console.error('Migration error:', err.message);
+          }
+        });
+      });
     }
   });
 }
